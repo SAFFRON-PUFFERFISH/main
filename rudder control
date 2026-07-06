@@ -1,0 +1,110 @@
+#include <servo.h> 
+
+Servo rightf; //fin servos
+Servo leftf;
+
+Servo rightl; //latch servos
+Servo leftl;
+
+//SET UP PINS
+
+int sevrf ;
+int servlf ;
+int servrl ;
+int servll ;
+
+bool right = false;
+bool left = true;
+
+void setup() {
+  //set joysticks as inputs and stepper motors as outputs
+
+  rightf.attach(sevrf);
+  leftf.attach(sevlf);
+  rightl.attach(sevrl); //assigns pins to motors
+  leftl.attach(sevll);
+
+}
+
+void loop() {
+
+
+  //read joystick x values
+
+  switch (joystick) {
+    case "":
+     turnr();
+  
+    break;
+ 
+    case "":
+      turnl();
+ 
+    break;
+
+    default:
+    staight(); //default set to straight
+
+
+    break;
+  }
+
+}
+
+
+
+
+
+void turnr() {
+  
+  if left == true {
+
+    leftf.write(0); //all angle writes need to be adjusted depending on the motor we use
+    leftl.write(90);
+    left = !left;
+
+  }
+
+  if right = false {
+    rightl.write(0);
+    rightf.write(90);
+    right = !right;
+
+  }
+
+}
+
+void turnl() {
+
+  if right == "true"{
+    rightf.write(0);
+    rightl.write(90);
+    right = !right;
+  }
+
+  if left == "false"{
+    leftl.write(0);
+    leftf.write(90);
+    left = !left;
+  }
+
+}
+
+void straight(){
+
+  if right == "true"{
+    rightf.write(0);
+    rightl.write(90);
+    right = !right;
+
+  }
+
+  if left == "true"{
+    leftf.write(0);
+    leftl.write(90);
+    left = !left;
+
+  }
+
+}
+
