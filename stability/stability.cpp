@@ -1,5 +1,5 @@
 
-// MPU6050 is what i am assuming we use
+// MPU6050 is what i am assuming we use.
 #include <Wire.h>    
 #include <Servo.h>   
 
