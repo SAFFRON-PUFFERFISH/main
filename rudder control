@@ -3,15 +3,13 @@
 Servo rightf; //fin servos
 Servo leftf;
 
-Servo rightl; //latch servos
-Servo leftl;
+
 
 //SET UP PINS
 
-int sevrf ;
+int servrf ;
 int servlf ;
-int servrl ;
-int servll ;
+
 
 bool right = false;
 bool left = true;
@@ -21,8 +19,7 @@ void setup() {
 
   rightf.attach(sevrf);
   leftf.attach(sevlf);
-  rightl.attach(sevrl); //assigns pins to motors
-  leftl.attach(sevll);
+  
 
 }
 
@@ -43,7 +40,7 @@ void loop() {
     break;
 
     default:
-    staight(); //default set to straight
+    straight(); //default set to straight
 
 
     break;
@@ -57,16 +54,16 @@ void loop() {
 
 void turnr() {
   
-  if left == true {
+  if left = "true" {
 
     leftf.write(0); //all angle writes need to be adjusted depending on the motor we use
-    leftl.write(90);
+   
     left = !left;
 
   }
 
-  if right = false {
-    rightl.write(0);
+  if right = "false" {
+   
     rightf.write(90);
     right = !right;
 
@@ -76,14 +73,14 @@ void turnr() {
 
 void turnl() {
 
-  if right == "true"{
+  if right = "true"{
     rightf.write(0);
     rightl.write(90);
     right = !right;
   }
 
-  if left == "false"{
-    leftl.write(0);
+  if left = "false"{
+    
     leftf.write(90);
     left = !left;
   }
@@ -92,16 +89,16 @@ void turnl() {
 
 void straight(){
 
-  if right == "true"{
+  if right = "true"{
     rightf.write(0);
-    rightl.write(90);
+  
     right = !right;
 
   }
 
-  if left == "true"{
+  if left = "true"{
     leftf.write(0);
-    leftl.write(90);
+   
     left = !left;
 
   }
