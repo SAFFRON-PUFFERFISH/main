@@ -1,53 +1,75 @@
-#include <servo.h> 
+#include <Servo.h> 
+
+#include <XBOXONE.h> 
 
 Servo rightf; //fin servos
 Servo leftf;
 
-
+USB Usb; //initilises USB host
+XBOXONE Xbox(&Usb); //creates controller object
 
 //SET UP PINS
 
-int servrf ;
-int servlf ;
+int servrf 0;
+int servlf 0;
 
 
 bool right = false;
-bool left = true;
+bool left = false;
 bool button = false;
 
 void setup() {
   //set joysticks as inputs and stepper motors as outputs
+Serial.begin(115200);
 
-  rightf.attach(sevrf);
-  leftf.attach(sevlf);
-  
+
+while (!Serial); // Wait for serial port to connect - used on Leonardo, Teensy and other boards with built-in USB CDC serial connection
+  if (Usb.Init() == -1) {
+    Serial.print(F("\r\nOSC did not start"));
+    while (1); //halt
+  }
+
+  rightf.attach(servrf);
+  leftf.attach(servlf);
 
 }
 
 void loop() {
 
+  Usb.Task(); //processes USB events
 
-  //read joystick x values
+  if (Xbox.getButtonClick(A)){
+     button = !button;
+}
 
-  switch (joystick) {
-    case "":
+  int16_t joystick = Xbox.getAnalogHat(LeftHatX); //horizontal, y axis is irrelevent to us, range -32768 to 32767
+
+  
+
+ 
+    if (joystick < -7500){
      turnr();
   
-    break;
+    }
  
-    case "":
+    else if (joystick > 7500){
       turnl();
  
-    break;
+   }
 
-    default:
+    else {
     straight(); //default set to straight
 
 
-    break;
+    
+
   }
 
+  delay(10);
+
 }
+
+
 
 
 
@@ -55,9 +77,9 @@ void loop() {
 
 void turnr() {
   
-  if left = "true" {
+  if (left) {
 
-    if button = "false"{
+    if (!button){
        leftf.write(0); //all angle writes need to be adjusted depending on the motor we use
        }
     else {
@@ -68,9 +90,11 @@ void turnr() {
 
   }
 
-  if right = "false" {
-   
+  if (!right) {
+    
     rightf.write(90);
+    
+
     right = !right;
 
   }
@@ -79,8 +103,8 @@ void turnr() {
 
 void turnl() {
 
-  if right = "true"{
-    if button = "false"{
+  if (right){
+    if (!button){
       rightf.write(0); //all angle writes need to be adjusted depending on the motor we use
     }
     else {
@@ -90,7 +114,7 @@ void turnl() {
     right = !right;
   }
 
-  if left = "false"{
+  if (!left){
     
     leftf.write(90);
     left = !left;
@@ -100,8 +124,8 @@ void turnl() {
 
 void straight(){
 
-  if right = "true"{
-    if button = "false"{
+  if (right){
+    if (!button){
       rightf.write(0); //all angle writes need to be adjusted depending on the motor we use
     }
     else {
@@ -112,8 +136,8 @@ void straight(){
 
   }
 
-  if left = "true"{
-    if button = "false"{
+  if (left) {
+    if (!button){
        leftf.write(0); //all angle writes need to be adjusted depending on the motor we use
        }
     else {
