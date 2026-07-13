@@ -11,10 +11,10 @@ int en = ; //digital pin
 
 
 void setup() {
-  Serial.begin(9600);
+  Serial.begin(9600); //set baud rate
 
   pinMode(in1, OUTPUT);
-  pinMode(in2, OUTPUT);
+  pinMode(in2, OUTPUT); //set pins
   pinMode(en, OUTPUT);
 
 }
@@ -32,13 +32,13 @@ void front();{
   uint16_t rt = Xbox.getButtonPress(RT); //0-1023, forward
   uint16_t lt = Xbox.getButtonPress(LT); //0-1023, reverse
 
-  if (rt > 0) {
+  if (rt > 50) {
     uint8_t speed = map(rt, 0, 1023, 0, 255);
      digitalWrite(in1, HIGH);
      digitalWrite(in2, LOW); //forward
 
   } 
-  else if (lt > 0) {
+  else if (lt > 50) { //play around with deadzone values
  
     digitalWrite(in1, LOW);
     digitalWrite(in2, HIGH); //reverse
