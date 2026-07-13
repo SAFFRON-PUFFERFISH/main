@@ -1,6 +1,6 @@
-#include <Servo.h> 
+#include <Servo.h> //library to interface with servos
 
-#include <XBOXONE.h> 
+#include <XBOXONE.h> //library to use xbox one controller
 
 Servo rightf; //fin servos
 Servo leftf;
@@ -19,8 +19,8 @@ bool left = false;
 bool button = false;
 
 void setup() {
-  //set joysticks as inputs and stepper motors as outputs
-Serial.begin(115200);
+ 
+Serial.begin(115200); //set baud rate
 
 
 while (!Serial); // wait for serial port to connect
@@ -38,22 +38,22 @@ void loop() {
 
   Usb.Task(); //processes USB events
 
-  if (Xbox.getButtonClick(A)){
+  if (Xbox.getButtonClick(A)){ //if the button has been pressed, change the button bool to let the software know
      button = !button;
 }
-
-  int16_t joystick = Xbox.getAnalogHat(LeftHatX); //horizontal, y axis is irrelevent to us, range -32768 to 32767
+  //using right hand joystick for horizontal deflection
+  int16_t joystick = Xbox.getAnalogHat(RightHatX); //horizontal, y axis is irrelevent to us, range -32768 to 32767
 
   
 
  
-    if (joystick < -7500){
-     turnr();
+    if (joystick < -7500){ //includes a dead zone of 7500 (May need to be adjusted)
+     turnl();
   
     }
  
     else if (joystick > 7500){
-      turnl();
+      turnr();
  
    }
 
@@ -65,7 +65,7 @@ void loop() {
 
   }
 
-  delay(10);
+  delay(10); //small delay to keep things running smoother
 
 }
 
@@ -83,7 +83,7 @@ void turnr() {
        leftf.write(0); //all angle writes need to be adjusted depending on the motor we use
        }
     else {
-      leftf.write(180);
+      leftf.write(180); // if button is pressed fin closes the other way
     }
    
     left = !left;
@@ -140,6 +140,7 @@ void straight(){
     if (!button){
        leftf.write(0); //all angle writes need to be adjusted depending on the motor we use
        }
+
     else {
       leftf.write(180);
     }
