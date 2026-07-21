@@ -29,8 +29,8 @@ while (!Serial); // wait for serial port to connect
     while (1); //halt
   }
 
-  rightf.attach(servrf);
-  leftf.attach(servlf);
+rightf.attach(servrf);
+leftf.attach(servlf);
 
 }
 
@@ -81,7 +81,7 @@ void turnr() {
 
     if (!button){
        leftf.write(0); //all angle writes need to be adjusted depending on the motor we use
-       }
+    }
     else {
       leftf.write(180); // if button is pressed fin closes the other way
     }
@@ -92,8 +92,7 @@ void turnr() {
 
   if (!right) {
     
-    rightf.write(90);
-    
+    rightf.write(90); 
 
     right = !right;
 
