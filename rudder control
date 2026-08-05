@@ -48,7 +48,7 @@ void loop() {
        
        turnr();
    {
-    elseif (Xbox.getButtonPress(LEFT)){
+    else if (Xbox.getButtonPress(LEFT)){
        
        turnl();
     }
@@ -57,7 +57,7 @@ void loop() {
     }
     
 
-  }
+  
 
   delay(10); //small delay to keep things running smoother
 
