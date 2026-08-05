@@ -10,29 +10,35 @@ XBOXONE Xbox(&Usb); //creates controller object
 
 //SET UP PINS
 
-int servrf 0;
-int servlf 0;
+const int servrf = 0; //attach servos to pins TBD COME BACK AND FINISH
+const int servlf = 0;
 
+enum FinState { //lets us put three diffrent states for the fins
+   STRAIGHT,
+   LEFT,
+   RIGHT
 
-bool right = false;
-bool left = false;
-bool button = false;
+};
 
+FinState fins = STRAIGHT; //initilises the fin state as fins and calls the variable fins
 
+bool reverseState = false; //our reverse button runs of boolean logic
+
+int straightAngle = button ? 180:0; //means our stright angle is dependent on button state without doing seperate if statements everywhere
 
 void setup() {
  
-Serial.begin(115200); //set baud rate
+  Serial.begin(115200); //set baud rate
 
 
-while (!Serial); // wait for serial port to connect
-  if (Usb.Init() == -1) {
-    Serial.print(F("\r\nOSC did not start"));
-    while (1); //halt
-  }
+  while (!Serial); // wait for serial port to connect
+    if (Usb.Init() == -1) {
+      Serial.print(F("\r\nOSC did not start"));
+      while (1); //halt
+    }
 
   rightf.attach(servrf);
-  leftf.attach(servlf);
+  leftf.attach(servlf); //attaches servos to specified pins earlier
 
 }
 
@@ -40,109 +46,40 @@ void loop() {
 
     Usb.Task(); //processes USB events
 
-    if (Xbox.getButtonClick(A)){ //if the button has been pressed, change the button bool to let the software know
-        button = !button;
+    if (Xbox.getButtonClick(A)){ //if the button has been pressed, change the button bool to let the software know we are in reverse state, another press nd its back to forwards mode
+        reverseState = !reverseState;
     }
   
-    if (Xbox.getButtonPress(RIGHT)){
-       
-       turnr();
-   {
-    else if (Xbox.getButtonPress(LEFT)){
-       
-       turnl();
-    }
-    else {
-       straight(); //default set to straight
-    }
+    updateFins(); //calls fin function
     
-
-  
-
-  delay(10); //small delay to keep things running smoother
+    delay(10); //small delay to keep things running smoother
 
 }
 
 
 
+void updateFins()
+{
+    int straightAngle = reverseState ? 180 : 0; //changes which direction the fins will lie flat wether going forward or in reverse
 
-
-
-
-void turnr() {
-  
-    if (left) {
-
-    if (!button){
-       leftf.write(0); //all angle writes need to be adjusted depending on the motor we use
+    if (Xbox.getButtonPress(RIGHT))
+    {
+        rightf.write(straightAngle); //closes right fin
+        leftf.write(90); //opens left fin
     }
-    else {
-      leftf.write(180); // if button is pressed fin closes the other way
+    else if (Xbox.getButtonPress(LEFT))
+    {
+        leftf.write(straightAngle);
+        rightf.write(90);
     }
-   
-    left = !left;
-
-  }
-
-  if (!right) {
-    
-    rightf.write(90); 
-
-    right = !right;
-
-  }
-
-
+    else
+    {
+        rightf.write(straightAngle); //closes both fins
+        leftf.write(straightAngle);
+    }
 }
 
-void turnl() {
-  if (right){
-    if (!button){
-      rightf.write(0); //all angle writes need to be adjusted depending on the motor we use
-    }
-    else {
-      rightf.write(180);
-    }
-    
-    right = !right;
-  }
 
-  if (!left){
-    
-    leftf.write(90);
-    left = !left;
-  }
 
-  
-}
 
-void straight(){
-
-  if (right){
-    if (!button){
-      rightf.write(0); //all angle writes need to be adjusted depending on the motor we use
-    }
-    else {
-      rightf.write(180);
-    }
-  
-    right = !right;
-
-  }
-
-  if (left) {
-    if (!button){
-       leftf.write(0); //all angle writes need to be adjusted depending on the motor we use
-       }
-
-    else {
-      leftf.write(180);
-    }
-   
-   
-    left = !left;
-
-  }
-
-}
 
