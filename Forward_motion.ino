@@ -7,10 +7,10 @@ XBOXONE Xbox(&Usb);
 
 
 //motor driver pins
-int in1 = ; //analogue pins
-int in2 = ;
+const int in1 = ; //analogue pins TBD
+const int in2 = ; 
 
-//enable pin (If using PWM)
+//enable pin (If using PWM) have not decided yet...
 int en = ; //digital pin
 
 
@@ -24,7 +24,7 @@ void setup() {
   }
 
   pinMode(in1, OUTPUT);
-  pinMode(in2, OUTPUT); //set pins
+  pinMode(in2, OUTPUT); //set pins to outouts
   pinMode(en, OUTPUT);
 
   digitalWrite(en,HIGH);
@@ -41,15 +41,15 @@ void loop() {
 
 void front(){
 
-  uint16_t rt = Xbox.getButtonPress(RT); //0-1023, forward
+  uint16_t rt = Xbox.getButtonPress(RT); //0-1023, forward //recieves trigger values from the controller allowing us to control the motors corrospondingly 
   uint16_t lt = Xbox.getButtonPress(LT); //0-1023, reverse
 
-  if (rt > 50) {
+  if (rt > 50) { //the above 50 is acting as a deadzone, need to play around with sensitivity and actual values later on
      digitalWrite(in1, HIGH);
      digitalWrite(in2, LOW); //forward
 
   } 
-  else if (lt > 50) { //play around with deadzone values
+  else if (lt > 50) { 
  
     digitalWrite(in1, LOW);
     digitalWrite(in2, HIGH); //reverse
