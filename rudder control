@@ -2,6 +2,8 @@
 
 #include <XBOXONE.h> //library to use xbox one controller
 
+#define debounceTime 50 //debounce time in milliseconds
+
 Servo rightf; //fin servos
 Servo leftf;
 
@@ -22,9 +24,10 @@ enum FinState { //lets us put three diffrent states for the fins
 
 FinState fins = STRAIGHT; //initilises the fin state as fins and calls the variable fins
 
-bool reverseState = false; //our reverse button runs of boolean logic
+bool reverseState = LOW; //our reverse button runs of boolean logic
+bool lastReverseState = HIGH; //previous button state
+unsigned long lastDebounceTime = 0;//time since last state change
 
-int straightAngle = button ? 180:0; //means our stright angle is dependent on button state without doing seperate if statements everywhere
 
 void setup() {
  
@@ -45,7 +48,7 @@ void setup() {
 void loop() {
 
     Usb.Task(); //processes USB events
-
+    
     if (Xbox.getButtonClick(A)){ //if the button has been pressed, change the button bool to let the software know we are in reverse state, another press nd its back to forwards mode
         reverseState = !reverseState;
     }
