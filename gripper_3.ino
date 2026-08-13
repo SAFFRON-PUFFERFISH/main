@@ -1,7 +1,7 @@
 // Code for the robotic arm, wrist and gripper. 
 // Last updated: 6.8.2026
 
- #include <Servo.h> // library to interface with servos
+ #include <ESP32Servo.h> // library to interface with servos
  #include <XBOXONE.h> // library to use the xbox one controller 
  
  // Servo objects 
