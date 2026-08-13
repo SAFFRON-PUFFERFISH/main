@@ -1,7 +1,6 @@
 
 // MPU6050 is what i am assuming we use.
-#include <Wire.h>    
-#include <Servo.h>   
+#include <Wire.h>     
 
 // MPU6050 constants 
 const uint8_t MPU_ADDR         = 0x68;     // I2C address when the AD0 pin is tied low
