@@ -1,0 +1,2 @@
+//Xbox controller microcontroller
+//Acting as the main controller, polling the controller continously, controlling steering and robotic arm. Will then send interupts to VBM for dive system. 
