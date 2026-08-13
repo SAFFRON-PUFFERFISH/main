@@ -1,4 +1,4 @@
-#include <Servo.h> // library to interface with servos
+#include <ESP32Servo.h> // library to interface with servos
  #include <XBOXONE.h> // library to use the xbox one controller 
  
  // Servo objects 
