@@ -1,0 +1,2 @@
+//Volatile Base Microcontroller
+//Secondary controller which is autonmously stabalising the submersible through IMU sensor data. It will also recieve an interrupt for the drive control function from the XCM when required.
