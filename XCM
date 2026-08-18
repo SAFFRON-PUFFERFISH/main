@@ -12,7 +12,6 @@ Servo leftf;
 
 //SET UP PINS
 
-// Servo objects 
  Servo servo_wrist;
  Servo servo_grip; //robotic arm servos
 
@@ -35,13 +34,10 @@ int straightAngle = button ? 180:0; //means our stright angle is dependent on bu
 const int in1 = ; //analogue pins TBD
 const int in2 = ; 
 
-//enable pin (If using PWM) have not decided yet...
-int en = ; //digital pin
-
 
  // servo angle limit 
  const int wrist_min_angle = 0;
- const int wrist_max_angle = 180;
+ const int wrist_max_angle = 180; //setting parameters
  const int grip_min_angle = 0;
  const int grip_max_angle = 90;
 
@@ -50,7 +46,7 @@ int en = ; //digital pin
  int grip_angle = 0;
  
  // joystick angles 
- // xBox -32768 to +32767
+ // xBox -32768 to +32767 //NEEDS CHANGING FOR GENEREIC
  const int joystick_deadzone = 7500;
  const int joystick_centre = 0;
 
@@ -68,7 +64,6 @@ void setup() {
   pinMode(in2, OUTPUT); //set pins to outouts
   pinMode(en, OUTPUT);
 
-  digitalWrite(en,HIGH);
 
     // Attach servos to pins - CONFIRM PIN NUMBERS
   servo_wrist.attach(); 
