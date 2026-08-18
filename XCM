@@ -1,0 +1,182 @@
+//Xbox controller microcontroller
+//Acting as the main controller, polling the controller continously, controlling steering and robotic arm. Will then send interupts to VBM for dive system. 
+
+#include <ESP32Servo.h> //library to interface with servos
+#include <XBOXONE.h>
+
+USB Usb;
+XBOXONE Xbox(&Usb);
+
+Servo rightf; //fin servos
+Servo leftf;
+
+//SET UP PINS
+
+ Servo servo_wrist;
+ Servo servo_grip; //robotic arm servos
+
+const int servrf = 0; //attach servos to pins TBD COME BACK AND FINISH
+const int servlf = 0;
+
+enum FinState { //lets us put three diffrent states for the fins
+   STRAIGHT,
+   LEFT,
+   RIGHT
+
+};
+
+FinState fins = STRAIGHT; //initilises the fin state as fins and calls the variable fins
+
+bool reverseState = false; //our reverse button runs of boolean logic
+
+int straightAngle = button ? 180:0; //means our stright angle is dependent on button state without doing seperate if statements everywhere
+//motor driver pins
+const int in1 = ; //analogue pins TBD
+const int in2 = ; 
+
+
+ // servo angle limit 
+ const int wrist_min_angle = 0;
+ const int wrist_max_angle = 180; //setting parameters
+ const int grip_min_angle = 0;
+ const int grip_max_angle = 90;
+
+ // Define starting angles for Servos 
+ int wrist_angle = 0;
+ int grip_angle = 0;
+ 
+ // joystick angles 
+ // xBox -32768 to +32767 //NEEDS CHANGING FOR GENEREIC
+ const int joystick_deadzone = 7500;
+ const int joystick_centre = 0;
+
+
+void setup() {
+  Serial.begin(115200); //set baud rate
+
+  while (!Serial); // Wait for serial port to connect - used on Leonardo, Teensy and other boards with built-in USB CDC serial connection
+    if (Usb.Init() == -1) {
+      Serial.print(F("\r\nOSC did not start"));
+    while (1); //halt
+  }
+
+  pinMode(in1, OUTPUT);
+  pinMode(in2, OUTPUT); //set pins to outouts
+  pinMode(en, OUTPUT);
+
+
+    // Attach servos to pins - CONFIRM PIN NUMBERS
+  servo_wrist.attach(); 
+  servo_grip.attach(); 
+  rightf.attach(servrf);
+  leftf.attach(servlf); //attaches servos to specified pins earlier
+
+    // Set initial position 
+  servo_wrist.write(wrist_angle); // start at 0 degrees
+  servo_grip.write(grip_angle); // start at 0 degrees
+
+}
+
+void loop() {
+
+  Usb.Task(); //services USB stack
+  front();
+    if (Xbox.getButtonClick(A)){ //if the button has been pressed, change the button bool to let the software know we are in reverse state, another press nd its back to forwards mode
+        reverseState = !reverseState;
+    }
+  
+    updateFins(); //calls fin function
+    
+    delay(10); //small delay to keep things running smoother
+   if (Xbox.XboxOneConnected) {
+    Serial.println("Controller connected");
+    // wrist control 
+    wrist_control();
+    // grip control
+    grip_control();
+    }
+  delay(20);
+
+}
+
+
+void front(){
+
+  uint16_t rt = Xbox.getButtonPress(RT); //0-1023, forward //recieves trigger values from the controller allowing us to control the motors corrospondingly 
+  uint16_t lt = Xbox.getButtonPress(LT); //0-1023, reverse
+
+  if (rt > 50) { //the above 50 is acting as a deadzone, need to play around with sensitivity and actual values later on
+     digitalWrite(in1, HIGH);
+     digitalWrite(in2, LOW); //forward
+
+  } 
+  else if (lt > 50) { 
+ 
+    digitalWrite(in1, LOW);
+    digitalWrite(in2, HIGH); //reverse
+
+  } else {
+    digitalWrite(in1, LOW);
+    digitalWrite(in2, LOW); //stopped
+  }
+
+
+
+}
+
+void updateFins()
+{
+    int straightAngle = reverseState ? 180 : 0; //changes which direction the fins will lie flat wether going forward or in reverse
+
+    if (Xbox.getButtonPress(RIGHT))
+    {
+        rightf.write(straightAngle); //closes right fin
+        leftf.write(90); //opens left fin
+    }
+    else if (Xbox.getButtonPress(LEFT))
+    {
+        leftf.write(straightAngle);
+        rightf.write(90);
+    }
+    else
+    {
+        rightf.write(straightAngle); //closes both fins
+        leftf.write(straightAngle);
+    }
+}
+
+void grip_control (){ 
+  
+ int16_t xval = Xbox.getAnalogHat(RightHatX); //horizontal, y axis is irrelevent to us, range -32768 to 32767
+  Serial.println(xval); // print the joystick value 
+  // check for deadzones
+  if (abs(xval) > joystick_deadzone){
+    if (xval > joystick_deadzone){
+      grip_angle++; 
+    }
+   else if (xval < -joystick_deadzone) {
+      grip_angle--;
+    }
+  }
+ grip_angle = constrain(grip_angle, grip_min_angle, grip_max_angle); // make sure the angle doesnt go outside the range (0-180)
+ servo_grip.write(grip_angle);
+}
+
+// Control the wrist rotation based on the triggers. Hold R down, will turn CW onedegree every loop. so when released it stays there, and left will turn CCW. 
+void wrist_control() {
+ 
+ bool R_rotation = Xbox.getButtonPress(RB);
+ bool L_rotation = Xbox.getButtonPress(LB);
+
+ int step = 2; // degrees per loop
+  // check if button is pressed
+  if (R_rotation){
+    // rotate servo angle
+    wrist_angle += step;
+  }
+  else if (L_rotation){
+    wrist_angle -= step;
+  }
+ wrist_angle = constrain(wrist_angle, wrist_min_angle, wrist_max_angle); // keep in servo limits
+ servo_wrist.write(wrist_angle); // move servo 
+}
