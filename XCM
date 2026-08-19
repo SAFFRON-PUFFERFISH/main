@@ -2,18 +2,16 @@
 //Acting as the main controller, polling the controller continously, controlling steering and robotic arm. Will then send interupts to VBM for dive system. 
 
 #include <ESP32Servo.h> //library to interface with servos
-#include <XBOXONE.h>
-
-USB Usb;
-XBOXONE Xbox(&Usb);
+#include "EspUsbHost.h"
+EspUsbHost usb;
 
 Servo rightf; //fin servos
 Servo leftf;
 
 //SET UP PINS
 
- Servo servo_wrist;
- Servo servo_grip; //robotic arm servos
+Servo servo_wrist;
+Servo servo_grip; //robotic arm servos
 
 const int servrf = 0; //attach servos to pins TBD COME BACK AND FINISH
 const int servlf = 0;
@@ -53,17 +51,11 @@ const int in2 = ;
 
 void setup() {
   Serial.begin(115200); //set baud rate
-
-  while (!Serial); // Wait for serial port to connect - used on Leonardo, Teensy and other boards with built-in USB CDC serial connection
-    if (Usb.Init() == -1) {
-      Serial.print(F("\r\nOSC did not start"));
-    while (1); //halt
-  }
+  delay(2000);
 
   pinMode(in1, OUTPUT);
   pinMode(in2, OUTPUT); //set pins to outouts
   pinMode(en, OUTPUT);
-
 
     // Attach servos to pins - CONFIRM PIN NUMBERS
   servo_wrist.attach(); 
@@ -75,26 +67,33 @@ void setup() {
   servo_wrist.write(wrist_angle); // start at 0 degrees
   servo_grip.write(grip_angle); // start at 0 degrees
 
-}
+  usb.onGamepad([](const EspUsbHostGamepadEvent &event){ //runs automatically when new controller datac omes in
+     int leftStickY = event.rawData[ //will need offsetting  
 
-void loop() {
 
-  Usb.Task(); //services USB stack
-  front();
-    if (Xbox.getButtonClick(A)){ //if the button has been pressed, change the button bool to let the software know we are in reverse state, another press nd its back to forwards mode
-        reverseState = !reverseState;
-    }
-  
+
     updateFins(); //calls fin function
     
     delay(10); //small delay to keep things running smoother
-   if (Xbox.XboxOneConnected) {
-    Serial.println("Controller connected");
+  
     // wrist control 
     wrist_control();
     // grip control
     grip_control();
     }
+
+
+  }
+
+  if (!usb.begin()) {
+    Serial.println("USB host failed to start");
+  }
+}
+
+void loop() {
+
+  usb.task(); //services USB stack, calls the event checker, checks hardware for a new trigger
+
   delay(20);
 
 }
