@@ -21,9 +21,9 @@
 #include <ESP32Servo.h> //library to interface with servos
 #include "EspUsbHost.h"
 
-// =================
+
 // ESP-NOW FUNCTIONS
-// =================
+
 
 void esp_init () {
   // initialise ESP-NOW and check that it is operating
@@ -113,9 +113,26 @@ const int in2 = ;
  const int joystick_centre = 0;
 
 
+void getData() { //getting all the data from each button on the controller
+
+ int leftStickY = event.rawData[ //dive
+ int rightStickX = event.rawData[ //grabber
+ int leftBumper = event.rawData[ //wrist rotation right
+ int rightBumper = event.rawData[ //wrist rotation left
+ int leftTrigger = event.rawData[ //forward propulsion
+ int rightTrigger = event.rawData[ //backwards propulsion
+ 
+ int Y = event.rawData[ //dock to dock code
+ int B = event.rawData[ //reverse
+
+ int dpadR = event.rawData[ //left fin out
+ int dpadL = event.rawData[ //right fin out
+
+}
+
 void setup() {
   Serial.begin(115200); //set baud rate
-  delay(2000);
+  
 
   esp_init();
   add_peer(macAddr_DockA); // ADD DOCK A as a PEER
@@ -132,13 +149,14 @@ void setup() {
   rightf.attach(servrf);
   leftf.attach(servlf); //attaches servos to specified pins earlier
 
-    // Set initial position 
+    // Set initial position for wrist psotion and grip angle
   servo_wrist.write(wrist_angle); // start at 0 degrees
   servo_grip.write(grip_angle); // start at 0 degrees
 
   usb.onGamepad([](const EspUsbHostGamepadEvent &event){ //runs automatically when new controller datac omes in
-     int leftStickY = event.rawData[ //will need offsetting  
 
+    getData();
+     
 
 
     updateFins(); //calls fin function
