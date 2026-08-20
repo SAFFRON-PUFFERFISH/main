@@ -19,44 +19,8 @@
 #include <esp_now.h>
 
 #include <ESP32Servo.h> //library to interface with servos
-#include "EspUsbHost.h"
+#include "EspUsbHost.h" //USB library
 
-
-// ESP-NOW FUNCTIONS
-
-
-void esp_init () {
-  // initialise ESP-NOW and check that it is operating
-
-  WiFi.mode(WIFI_MODE_STA);
-  
-  if (esp_now_init() != ESP_OK) {
-    Serial.println("ESP-NOW Initialisation Failed, Retrying...");
-    ESP.restart();
-  }
-  else {
-    esp_now_register_recv_cb(receive_data); // REMOVE IF NOT RECEIVING DATA
-    // esp_now_register_send_cb(send_success); // REMOVE IF SEND VALIDATION N/R
-  };
-}
-
-bool send_data(const uint8_t *receiverMAC, const uint8_t *data, size_t len) {
-  // take input of receiver MAC Address, send data
-  // conducts 10 attempts with a spacing of 50ms before halting transfer attempts
-  // returns bool depending on success/failure
-  esp_err_t result;
-  int attempts = 0;
-
-  do {
-    result = esp_now_send(receiverMAC, data, len);
-    attempts++;
-    if (result != ESP_OK) delay(50);
-  } while (result != ESP_OK && attempts <= 10);
-
-  if (attempts > 10) {Serial.println("Data transmission failed. :(");}
-  
-  return (result == ESP_OK); // returns true if data sent successfully
-}
 
 // espn global
 
@@ -67,7 +31,7 @@ const uint8_t macAddr_DockA[] = {0xE8, 0xF6, 0x0A, 0xBE, 0x54, 0xDC};
 const uint8_t macAddr_DockB[] = {0xE8, 0xF6, 0x0A, 0xD3, 0x68, 0x54};
 const uint8_t macAddr_DockC[] = {0xE8, 0xF6, 0x0A, 0xBE, 0xB0, 0xCC};
 
-EspUsbHost usb;
+EspUsbHost usb; //creates USB host object, manages connection to controller
 
 Servo rightf; //fin servos
 Servo leftf;
@@ -112,6 +76,43 @@ const int in2 = ;
  const int joystick_deadzone = 7500;
  const int joystick_centre = 0;
 
+// ESP-NOW FUNCTIONS
+
+
+void esp_init () {
+  // initialise ESP-NOW and check that it is operating
+
+  WiFi.mode(WIFI_MODE_STA);
+  
+  if (esp_now_init() != ESP_OK) {
+    Serial.println("ESP-NOW Initialisation Failed, Retrying...");
+    ESP.restart();
+  }
+  else {
+    esp_now_register_recv_cb(receive_data); // REMOVE IF NOT RECEIVING DATA
+    // esp_now_register_send_cb(send_success); // REMOVE IF SEND VALIDATION N/R
+  };
+}
+
+bool send_data(const uint8_t *receiverMAC, const uint8_t *data, size_t len) {
+  // take input of receiver MAC Address, send data
+  // conducts 10 attempts with a spacing of 50ms before halting transfer attempts
+  // returns bool depending on success/failure
+  esp_err_t result;
+  int attempts = 0;
+
+  do {
+    result = esp_now_send(receiverMAC, data, len);
+    attempts++;
+    if (result != ESP_OK) delay(50);
+  } while (result != ESP_OK && attempts <= 10);
+
+  if (attempts > 10) {Serial.println("Data transmission failed. :(");}
+  
+  return (result == ESP_OK); // returns true if data sent successfully
+}
+
+
 
 void getData() { //getting all the data from each button on the controller
 
@@ -129,65 +130,6 @@ void getData() { //getting all the data from each button on the controller
  int dpadL = event.rawData[ //right fin out
 
 }
-
-void setup() {
-  Serial.begin(115200); //set baud rate
-  
-
-  esp_init();
-  add_peer(macAddr_DockA); // ADD DOCK A as a PEER
-  add_peer(macAddr_DockB); // ADD DOCK B as a PEER
-  add_peer(macAddr_DockC); // ADD DOCK C as a PEER
-
-  pinMode(in1, OUTPUT);
-  pinMode(in2, OUTPUT); //set pins to outouts
-  pinMode(en, OUTPUT);
-
-    // Attach servos to pins - CONFIRM PIN NUMBERS
-  servo_wrist.attach(); 
-  servo_grip.attach(); 
-  rightf.attach(servrf);
-  leftf.attach(servlf); //attaches servos to specified pins earlier
-
-    // Set initial position for wrist psotion and grip angle
-  servo_wrist.write(wrist_angle); // start at 0 degrees
-  servo_grip.write(grip_angle); // start at 0 degrees
-
-  usb.onGamepad([](const EspUsbHostGamepadEvent &event){ //runs automatically when new controller datac omes in
-
-    getData();
-     
-
-
-    updateFins(); //calls fin function
-    
-    delay(10); //small delay to keep things running smoother
-  
-    // wrist control 
-    wrist_control();
-    // grip control
-    grip_control();
-    // esp_now dock transmission
-    dock_transmission();    
-
-    }
-
-
-  }
-
-  if (!usb.begin()) {
-    Serial.println("USB host failed to start");
-  }
-}
-
-void loop() {
-
-  usb.task(); //services USB stack, calls the event checker, checks hardware for a new trigger
-
-  delay(20);
-
-}
-
 
 void front(){
 
@@ -275,3 +217,65 @@ void dock_transmission() {
     send_data(macAddr_DockC, (uint8_t *)&binaryData_A, sizeof(binaryData_A));
   }
 }
+
+
+
+
+void setup() {
+  Serial.begin(115200); //set baud rate
+  
+
+  esp_init();
+  add_peer(macAddr_DockA); // ADD DOCK A as a PEER
+  add_peer(macAddr_DockB); // ADD DOCK B as a PEER
+  add_peer(macAddr_DockC); // ADD DOCK C as a PEER
+
+  pinMode(in1, OUTPUT);
+  pinMode(in2, OUTPUT); //set pins to outouts
+  pinMode(en, OUTPUT);
+
+    // Attach servos to pins - CONFIRM PIN NUMBERS
+  servo_wrist.attach(); 
+  servo_grip.attach(); 
+  rightf.attach(servrf);
+  leftf.attach(servlf); //attaches servos to specified pins earlier
+
+    // Set initial position for wrist psotion and grip angle
+  servo_wrist.write(wrist_angle); // start at 0 degrees
+  servo_grip.write(grip_angle); // start at 0 degrees
+
+  usb.onGamepad([](const EspUsbHostGamepadEvent &event){ //runs automatically when new controller datac omes in
+
+    getData();
+     
+
+
+    updateFins(); //calls fin function
+    
+    delay(10); //small delay to keep things running smoother
+  
+    // wrist control 
+    wrist_control();
+    // grip control
+    grip_control();
+    // esp_now dock transmission
+    dock_transmission();    
+
+    }
+
+
+  }
+
+  if (!usb.begin()) {
+    Serial.println("USB host failed to start");
+  }
+}
+
+void loop() {
+
+  usb.task(); //services USB stack, calls the event checker, checks hardware for a new trigger
+
+  delay(20);
+
+}
+
