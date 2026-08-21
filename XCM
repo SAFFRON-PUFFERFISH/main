@@ -22,6 +22,24 @@
 #include "EspUsbHost.h" //USB library
 
 
+//PLACEHOLDER FIELD INDICES
+#define FRSY -1 //field right stick y, controlls grabber opening and closing
+#define FRB -1 //field right bumper, controls arm wrist rotation
+#define FLB -1 //field left bumper, controls arm wrist rotation
+#define FRT -1 //field right trigger, controls forward propulsion
+#define FLT -1 //field left trigger, controls reverse propulsion
+#define FR -1 //field right (d-pad), opens left fin
+#define FL -1 //field left (d-pad), opens right fin
+#define FBR -1 //field button reverse, puts in reverse mode
+#define FBD -1 //field button dock, sends code to dock C
+#define FLSDY -1 //field left stick dive y, controlls dive
+
+//placeholder values range UPDATE LATER ON
+#define SM -1 //stick min
+#define SMM 0 //stick medium
+#define SMMM 1 //stick max
+#define SD 5 //stick deadzone
+
 // espn global
 
 uint16_t binaryData_A;
@@ -45,6 +63,7 @@ const int servrf = 0; //attach servos to pins TBD COME BACK AND FINISH
 const int servlf = 0;
 
 enum FinState { //lets us put three diffrent states for the fins
+
    STRAIGHT,
    LEFT,
    RIGHT
@@ -131,40 +150,34 @@ void getData() { //getting all the data from each button on the controller
 
 }
 
-void front(){
 
-  uint16_t rt = Xbox.getButtonPress(RT); //0-1023, forward //recieves trigger values from the controller allowing us to control the motors corrospondingly 
-  uint16_t lt = Xbox.getButtonPress(LT); //0-1023, reverse
 
-  if (rt > 50) { //the above 50 is acting as a deadzone, need to play around with sensitivity and actual values later on
-     digitalWrite(in1, HIGH);
-     digitalWrite(in2, LOW); //forward
+void front(const EspUsbHostGamepadEvent &event) {
+  int32_t rt = fieldVal(event, FRT);   //forward
+  int32_t lt = fieldVal(event, FLT);   //reverse
 
-  } 
-  else if (lt > 50) { 
- 
+  if (rt > 50) {          //threshold assumes 0-1023 range, confirm from dump test
+    digitalWrite(in1, HIGH);
+    digitalWrite(in2, LOW);   //forward
+  } else if (lt > 50) {
     digitalWrite(in1, LOW);
     digitalWrite(in2, HIGH); //reverse
-
   } else {
     digitalWrite(in1, LOW);
-    digitalWrite(in2, LOW); //stopped
+    digitalWrite(in2, LOW);   //stopped
   }
-
-
-
 }
 
-void updateFins()
+void updateFins(const EspUsbHostGamepadEvent &event)
 {
     int straightAngle = reverseState ? 180 : 0; //changes which direction the fins will lie flat wether going forward or in reverse
 
-    if (Xbox.getButtonPress(RIGHT))
+    if (fieldVal(event, FR) !=0)
     {
         rightf.write(straightAngle); //closes right fin
         leftf.write(90); //opens left fin
     }
-    else if (Xbox.getButtonPress(LEFT))
+    else if (fieldVal(event, FL) !=0)
     {
         leftf.write(straightAngle);
         rightf.write(90);
@@ -176,9 +189,9 @@ void updateFins()
     }
 }
 
-void grip_control (){ 
+void grip_control (const EspUsbHostGamepadEvent &event){ 
   
- int16_t xval = Xbox.getAnalogHat(RightHatX); //horizontal, y axis is irrelevent to us, range -32768 to 32767
+ int16_t xval = fieldVal(event, FRSX); //horizontal, y axis is irrelevent to us, range -32768 to 32767
   Serial.println(xval); // print the joystick value 
   // check for deadzones
   if (abs(xval) > joystick_deadzone){
@@ -194,10 +207,10 @@ void grip_control (){
 }
 
 // Control the wrist rotation based on the triggers. Hold R down, will turn CW onedegree every loop. so when released it stays there, and left will turn CCW. 
-void wrist_control() {
+void wrist_control(const EspUsbHostGamepadEvent &event) {
  
- bool R_rotation = Xbox.getButtonPress(RB);
- bool L_rotation = Xbox.getButtonPress(LB);
+  bool R_rotation = fieldVal(event, FRB) != 0;
+  bool L_rotation = fieldVal(event, FLB) != 0;
 
  int step = 2; // degrees per loop
   // check if button is pressed
@@ -222,7 +235,9 @@ void dock_transmission() {
 
 
 void setup() {
+
   Serial.begin(115200); //set baud rate
+  Serial1.begin(115200, SERIAL_8N1, /RX pin/ -1, /TX pin/ -1); //link to VBM
   
 
   esp_init();
@@ -232,7 +247,7 @@ void setup() {
 
   pinMode(in1, OUTPUT);
   pinMode(in2, OUTPUT); //set pins to outouts
-  pinMode(en, OUTPUT);
+
 
     // Attach servos to pins - CONFIRM PIN NUMBERS
   servo_wrist.attach(); 
@@ -244,27 +259,15 @@ void setup() {
   servo_wrist.write(wrist_angle); // start at 0 degrees
   servo_grip.write(grip_angle); // start at 0 degrees
 
-  usb.onGamepad([](const EspUsbHostGamepadEvent &event){ //runs automatically when new controller datac omes in
+  usb.onGamepad([](const EspUsbHostGamepadEvent &event)); { //runs automatically when new controller datac omes in
 
-    getData();
-     
-
-
-    updateFins(); //calls fin function
-    
-    delay(10); //small delay to keep things running smoother
-  
-    // wrist control 
-    wrist_control();
-    // grip control
-    grip_control();
-    // esp_now dock transmission
-    dock_transmission();    
-
-    }
-
+    handleGamepadInput(event);
 
   }
+
+  
+
+  
 
   if (!usb.begin()) {
     Serial.println("USB host failed to start");
@@ -273,9 +276,11 @@ void setup() {
 
 void loop() {
 
-  usb.task(); //services USB stack, calls the event checker, checks hardware for a new trigger
-
-  delay(20);
-
 }
 
+
+void handleGamepadInput(const EspUsbHostGamepadEvent &event) {
+
+   
+
+}
