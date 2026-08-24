@@ -133,25 +133,6 @@ bool send_data(const uint8_t *receiverMAC, const uint8_t *data, size_t len) {
 
 
 
-void getData() { //getting all the data from each button on the controller
-
- int leftStickY = event.rawData[ //dive
- int rightStickX = event.rawData[ //grabber
- int leftBumper = event.rawData[ //wrist rotation right
- int rightBumper = event.rawData[ //wrist rotation left
- int leftTrigger = event.rawData[ //forward propulsion
- int rightTrigger = event.rawData[ //backwards propulsion
- 
- int Y = event.rawData[ //dock to dock code
- int B = event.rawData[ //reverse
-
- int dpadR = event.rawData[ //left fin out
- int dpadL = event.rawData[ //right fin out
-
-}
-
-
-
 void front(const EspUsbHostGamepadEvent &event) {
   int32_t rt = fieldVal(event, FRT);   //forward
   int32_t lt = fieldVal(event, FLT);   //reverse
@@ -191,7 +172,7 @@ void updateFins(const EspUsbHostGamepadEvent &event)
 
 void grip_control (const EspUsbHostGamepadEvent &event){ 
   
- int16_t xval = fieldVal(event, FRSX); //horizontal, y axis is irrelevent to us, range -32768 to 32767
+  int16_t xval = fieldVal(event, FRSX); //horizontal, y axis is irrelevent to us, range -32768 to 32767
   Serial.println(xval); // print the joystick value 
   // check for deadzones
   if (abs(xval) > joystick_deadzone){
@@ -225,19 +206,32 @@ void wrist_control(const EspUsbHostGamepadEvent &event) {
  servo_wrist.write(wrist_angle); // move servo 
 }
 
-void dock_transmission() {
-  if (Xbox.getButtonPress(Y)) {
+void dock_transmission(const EspUsbHostGamepadEvent &event) {
+  if (fieldVal(event, FBD) != 0) {
     send_data(macAddr_DockC, (uint8_t *)&binaryData_A, sizeof(binaryData_A));
   }
 }
 
+void handleGamepadInput(const EspUsbHostGamepadEvent &event) {
+   front(event);
+   updateFins(event);
+   grip_control(event);
+   wrist_control(event);
+   dock_transmission(event);
 
+   if (fieldVal(event, FBR) !=0) {
+      reverseState = !reverseState;
+   }
+
+
+
+}
 
 
 void setup() {
 
   Serial.begin(115200); //set baud rate
-  Serial1.begin(115200, SERIAL_8N1, /RX pin/ -1, /TX pin/ -1); //link to VBM
+  Serial1.begin(115200, SERIAL_8N1, /*RX pin*/ -1, /*TX pin*/ -1); //link to VBM
   
 
   esp_init();
@@ -264,9 +258,6 @@ void setup() {
     handleGamepadInput(event);
 
   }
-
-  
-
   
 
   if (!usb.begin()) {
@@ -275,12 +266,5 @@ void setup() {
 }
 
 void loop() {
-
-}
-
-
-void handleGamepadInput(const EspUsbHostGamepadEvent &event) {
-
-   
 
 }
