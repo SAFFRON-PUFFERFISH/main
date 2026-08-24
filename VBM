@@ -27,12 +27,6 @@ float roll = 0, pitch = 0;          // fused angle estimate in degrees (what we 
 const float ALPHA = 0.98f;          // how much we trust the gyro vs the accelerometer
 float gyroBiasX = 0, gyroBiasY = 0; // constant drift of each gyro axis, measured at startup
 
-
-// Vertical thrusters -- same pins and conventions as stability/stability.cpp
-// so both sketches run on identical wiring.
-const uint8_t PIN_FL = 3, PIN_FR = 4, PIN_RL = 5, PIN_RR = 6; //COME BACK AND CHANGE PINS
-Servo motorFL, motorFR, motorRL, motorRR;
-
 const int NEUTRAL    = 1500; // us pulse = "stop" on a bidirectional ESC
 const int MAX_OUTPUT = 200;  // biggest us offset we allow either side of neutral //MAY NEED ADJUSTING
 
@@ -52,6 +46,42 @@ struct PID {
 // One controller per axis. guess gains
 PID rollPID  = { 2.0f, 0.0f, 0.4f, 0.0f, 0.0f, (float)MAX_OUTPUT, (float)MAX_OUTPUT }; //COME BACK AND SEE
 PID pitchPID = { 2.0f, 0.0f, 0.4f, 0.0f, 0.0f, (float)MAX_OUTPUT, (float)MAX_OUTPUT };
+
+char cmdBuf[32];
+uint8_t cmdLen = 0;
+unsigned long lastCommandMs = 0;
+const unsigned long COMMAND_TIMEOUT_MS = 500;
+
+void pollUartCommands() {
+  while (Serial1.available()) {
+    char c = Serial1.read();
+
+    if (c == '\n') {
+      cmdBuf[cmdLen] = '\0';   // terminate the string
+
+      // Expected format from XCM: "DIVE:<signed int>"
+      // e.g. "DIVE:120" or "DIVE:-45"
+      if (strncmp(cmdBuf, "DIVE:", 5) == 0) {
+        verticalPower = atoi(cmdBuf + 5);
+        verticalPower = constrain(verticalPower, -MAX_OUTPUT, MAX_OUTPUT);
+        lastCommandMs = millis();
+      }
+      // TODO: add more `else if (strncmp(cmdBuf, "OTHER:", ...))` branches
+      // here as XCM sends more command types this board needs to act on
+
+      cmdLen = 0;   // reset for the next line
+    } else if (cmdLen < sizeof(cmdBuf) - 1) {
+      cmdBuf[cmdLen++] = c;
+    }
+    // characters beyond buffer size are silently dropped — fine for
+    // short numeric commands like this
+  }
+
+ / Failsafe: if we haven't heard from XCM recently, stop diving
+  // rather than holding the last command forever
+  if (millis() - lastCommandMs > COMMAND_TIMEOUT_MS) {
+    verticalPower = 0;
+}
 
 float pidStep(PID &c, float measurement, float setpoint, float dt) {
   float error = setpoint - measurement;                    // how far off level we are (want 0)
@@ -130,33 +160,6 @@ int toMicros(int power) {
 // Returns 0 (neutral) when the controller is missing -- that is the failsafe:
 // if the pad dies mid-dive the thrusters stop instead of holding the last command.
 
-int readDivePower() {
-  if (!Xbox.XboxOneConnected) return 0;
-
-  // Read into a long BEFORE taking abs(): on an Uno `int` is 16-bit, so
-  // abs(-32768) overflows right back to -32768 and would flip our direction.
-  long y = Xbox.getAnalogHat(LeftHatY); // stick up = positive
-
-  long magnitude = abs(y);
-  if (magnitude < DEADZONE) return 0;   // centred -> no vertical thrust
-
-  // Map only the LIVE part of the throw (deadzone..max) onto 0..MAX_OUTPUT,
-  // so thrust ramps from zero at the deadzone edge instead of jumping.
-  long power = map(magnitude, DEADZONE, STICK_MAX, 0, MAX_OUTPUT);
-
-  // up = climb (+), down = dive (-). If the vehicle moves the wrong way in the
-  // water, flip the sign here rather than rewiring the ESCs.
-  return (y > 0) ? (int)power : -(int)power;
-}
-
-void writeAll(int power) {
-  int us = toMicros(power);
-  motorFL.writeMicroseconds(us);
-  motorFR.writeMicroseconds(us);
-  motorRL.writeMicroseconds(us);
-  motorRR.writeMicroseconds(us);
-}
-
 
 
 void setup() {
@@ -198,22 +201,13 @@ void setup() {
 
 void loop() {
 
-  Usb.Task();                          // service the USB stack (polls the pad)
+  pollUartCommands(); // updates verticalPower from XCM
 
-  int power = readDivePower();
-  writeAll(power);                     // same raw thrust on all four thrusters
-
-  static unsigned long lastPrint = 0;  // telemetry at 10 Hz so you can watch/tune
-  if (millis() - lastPrint >= 100) {
-    lastPrint = millis();
-    Serial.print(F("divePower=")); Serial.println(power);
-  }
   unsigned long now = micros();
-  // Gate the loop to a fixed rate. Unsigned subtraction stays correct even
-  // when micros() rolls over (~every 71 minutes).
   if ((now - lastLoopUs) < (unsigned long)(LOOP_DT * 1e6f)) return;
-  float dt = (now - lastLoopUs) / 1e6f;  // actual elapsed time in seconds (for the PID maths)
+  float dt = (now - lastLoopUs) / 1e6f;
   lastLoopUs = now;
+
 
   int16_t ax, ay, az, gx, gy, gz;
   mpuReadRaw(ax, ay, az, gx, gy, gz);    // fresh sensor sample
