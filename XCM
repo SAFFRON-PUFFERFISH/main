@@ -1,5 +1,5 @@
 //Xbox controller microcontroller
-//Acting as the main controller, polling the controller continously, controlling steering and robotic arm. Will then send interupts to VBM for dive system. 
+//Acting as the main controller, polling the controller continously, controlling steering and robotic arm. Will then send interrupts to VBM for dive system. 
 
 // INITIALISE WIFI PACKAGES
 
@@ -23,11 +23,11 @@
 
 
 //PLACEHOLDER FIELD INDICES
-#define FRSY -1 //field right stick y, controlls grabber opening and closing
+#define FRSY -1 //field right stick y, propulsion
 #define FRB -1 //field right bumper, controls arm wrist rotation
 #define FLB -1 //field left bumper, controls arm wrist rotation
-#define FRT -1 //field right trigger, controls forward propulsion
-#define FLT -1 //field left trigger, controls reverse propulsion
+#define FRT -1 //field right trigger, arm opening
+#define FLT -1 //field left trigger, arm closing
 #define FR -1 //field right (d-pad), opens left fin
 #define FL -1 //field left (d-pad), opens right fin
 #define FBR -1 //field button reverse, puts in reverse mode
@@ -134,19 +134,32 @@ bool send_data(const uint8_t *receiverMAC, const uint8_t *data, size_t len) {
 
 
 void front(const EspUsbHostGamepadEvent &event) {
-  int32_t rt = fieldVal(event, FRT);   //forward
-  int32_t lt = fieldVal(event, FLT);   //reverse
+  int32_t stickY = fieldVal(event, FRSY);
 
-  if (rt > 50) {          //threshold assumes 0-1023 range, confirm from dump test
-    digitalWrite(in1, HIGH);
-    digitalWrite(in2, LOW);   //forward
-  } else if (lt > 50) {
+  int32_t centred = stickY - joystick_centre; //CONFIRM DEADZONE
+  if (abs(centred) < joystick_deadzone) {
     digitalWrite(in1, LOW);
-    digitalWrite(in2, HIGH); //reverse
-  } else {
-    digitalWrite(in1, LOW);
-    digitalWrite(in2, LOW);   //stopped
+    digitalWrite(in2, LOW);
+    analogWrite(en, 0);          //stopped
+    return;
   }
+
+    
+  int speed = map(abs(centred), joystick_deadzone, STICK_MAX, 0, 255);
+
+    if (centred > 0) {
+      digitalWrite(in1, HIGH);
+      digitalWrite(in2, LOW);      //forward
+    } else {
+      digitalWrite(in1, LOW);
+      digitalWrite(in2, HIGH);     //reverse
+    }
+     analogWrite(en, speed);    //speed control MAY NEED CHANGING
+  }
+
+  int speed = map(abs(centred), joystick_deadzone, STICK_MAX, 0, 255);
+
+  if (centred > 0) {
 }
 
 void updateFins(const EspUsbHostGamepadEvent &event)
@@ -158,7 +171,12 @@ void updateFins(const EspUsbHostGamepadEvent &event)
         rightf.write(straightAngle); //closes right fin
         leftf.write(90); //opens left fin
     }
-    else if (fieldVal(event, FL) !=0)
+ 
+  }
+
+  int speed = map(abs(centred), joystick_deadzone, STICK_MAX, 0, 255);
+
+  if (centred > 0) {else if (fieldVal(event, FL) !=0)
     {
         leftf.write(straightAngle);
         rightf.write(90);
@@ -172,22 +190,23 @@ void updateFins(const EspUsbHostGamepadEvent &event)
 
 void grip_control (const EspUsbHostGamepadEvent &event){ 
   
-  int16_t xval = fieldVal(event, FRSX); //horizontal, y axis is irrelevent to us, range -32768 to 32767
-  Serial.println(xval); // print the joystick value 
-  // check for deadzones
-  if (abs(xval) > joystick_deadzone){
-    if (xval > joystick_deadzone){
-      grip_angle++; 
-    }
-   else if (xval < -joystick_deadzone) {
-      grip_angle--;
-    }
+  int32_t openTrig  = fieldVal(event, FRT);   // right trigger OPEN
+  int32_t closeTrig = fieldVal(event, FLT);   // left trigger  CLOSE
+
+  int step = 2;   // degrees per callback may need changing
+
+
+  if (openTrig > 50) { //CHANGE DEADZONE
+    grip_angle += step;
+  } else if (closeTrig > 50) {
+    grip_angle -= step;
   }
- grip_angle = constrain(grip_angle, grip_min_angle, grip_max_angle); // make sure the angle doesnt go outside the range (0-180)
- servo_grip.write(grip_angle);
+
+  grip_angle = constrain(grip_angle, grip_min_angle, grip_max_angle);
+  servo_grip.write(grip_angle);
 }
 
-// Control the wrist rotation based on the triggers. Hold R down, will turn CW onedegree every loop. so when released it stays there, and left will turn CCW. 
+//Control the wrist rotation based on the triggers. Hold R down, will turn CW onedegree every loop. so when released it stays there, and left will turn CCW. 
 void wrist_control(const EspUsbHostGamepadEvent &event) {
  
   bool R_rotation = fieldVal(event, FRB) != 0;
