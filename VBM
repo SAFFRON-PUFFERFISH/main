@@ -2,7 +2,7 @@
 //Secondary controller which is autonmously stabalising the submersible through IMU sensor data. It will also recieve an interrupt for the drive control function from the XCM when required.
 
 
-#include <Wire.h>    //transmission library
+#include <Wire.h>    //transmission library, allows us to commincate with XCM
 
 
 // MPU6050 constants  (stability)
@@ -12,7 +12,7 @@ const float   GYRO_LSB_PER_DPS = 131.0f;   // at +/-250dps -> 32768/250 counts p
 
 // Vertical thrusters
 const uint8_t PIN_FL = 3, PIN_FR = 4, PIN_RL = 5, PIN_RR = 6; // one ESC signal pin each
-Servo motorFL, motorFR, motorRL, motorRR;                     // one Servo object drives each ESC
+Servo motorFL, motorFR, motorRL, motorRR;                     // one Servo object drives each ESC (Nalin wrote as servo for some reason, need to change)
 const int NEUTRAL    = 1500;   // us pulse = "stop" on a bidirectional ESC
 const int MAX_OUTPUT = 200;    // biggest us offset we allow either side of neutral (keep small at first)
 
@@ -32,7 +32,7 @@ const int MAX_OUTPUT = 200;  // biggest us offset we allow either side of neutra
 
 // Joystick geometry
 const long STICK_MAX = 32767; // getAnalogHat() returns -32768..32767
-const long DEADZONE  = 4000;  // ignore wobble near centre so we don't creep when "still"
+const long DEADZONE  = 4000;  // ignore wobble near centre so we don't creep when "still" //MAY NEED ADJUSTING, FIND OUT CONTROLLER VALUES
 
 // PID controller
 struct PID {
@@ -52,33 +52,30 @@ uint8_t cmdLen = 0;
 unsigned long lastCommandMs = 0;
 const unsigned long COMMAND_TIMEOUT_MS = 500;
 
-void pollUartCommands() {
-  while (Serial1.available()) {
-    char c = Serial1.read();
+void pollUartCommands() { //polling to see if XCM has sent anything
+  while (Serial1.available()) { //while there is a message incoming from XCM...
+    char c = Serial1.read(); //tells us how many characters have been recieived
 
-    if (c == '\n') {
-      cmdBuf[cmdLen] = '\0';   // terminate the string
+    if (c == '\n') { //when a new line is started terminate string
+      cmdBuf[cmdLen] = '\0';   //terminate the string
 
-      // Expected format from XCM: "DIVE:<signed int>"
-      // e.g. "DIVE:120" or "DIVE:-45"
-      if (strncmp(cmdBuf, "DIVE:", 5) == 0) {
-        verticalPower = atoi(cmdBuf + 5);
-        verticalPower = constrain(verticalPower, -MAX_OUTPUT, MAX_OUTPUT);
+      //Expected format from XCM: "DIVE:<signed int>"
+      //e.g "DIVE:120" or "DIVE:-45"
+      if (strncmp(cmdBuf, "DIVE:", 5) == 0) { //checks if the first five characters match "DIVE"
+        verticalPower = atoi(cmdBuf + 5); //skips past dive
+        verticalPower = constrain(verticalPower, -MAX_OUTPUT, MAX_OUTPUT); //constraining into safe range
         lastCommandMs = millis();
       }
-      // TODO: add more `else if (strncmp(cmdBuf, "OTHER:", ...))` branches
-      // here as XCM sends more command types this board needs to act on
 
-      cmdLen = 0;   // reset for the next line
-    } else if (cmdLen < sizeof(cmdBuf) - 1) {
+      cmdLen = 0;   //reset for the next line
+    } else if (cmdLen < sizeof(cmdBuf) - 1) { //if theres a really long message it recognises its all part of same message, store in buffer and 
       cmdBuf[cmdLen++] = c;
     }
-    // characters beyond buffer size are silently dropped — fine for
-    // short numeric commands like this
+    //characters beyond buffer size are dropped
   }
 
- / Failsafe: if we haven't heard from XCM recently, stop diving
-  // rather than holding the last command forever
+ // if we haven't heard from XCM recently, stop diving
+
   if (millis() - lastCommandMs > COMMAND_TIMEOUT_MS) {
     verticalPower = 0;
 }
@@ -201,7 +198,7 @@ void setup() {
 
 void loop() {
 
-  pollUartCommands(); // updates verticalPower from XCM
+  pollUartCommands(); // updates verticalPower from XCM, see previous function
 
   unsigned long now = micros();
   if ((now - lastLoopUs) < (unsigned long)(LOOP_DT * 1e6f)) return;
@@ -238,7 +235,7 @@ void loop() {
   motorRL.writeMicroseconds(toMicros(RL));
   motorRR.writeMicroseconds(toMicros(RR));
 
-  // Print angles + corrections at 20 Hz so you can watch/tune the loop.
+  // Print angles + corrections at 20 Hz so you can watch/tune the loop. troubleshooting code
   static unsigned long lastPrint = 0;
   if (millis() - lastPrint >= 50) {
     lastPrint = millis();
