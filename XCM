@@ -1,9 +1,8 @@
 //Xbox controller microcontroller
 //Acting as the main controller, polling the controller continously, controlling steering and robotic arm. Will then send interrupts to VBM for dive system. 
 
-// INITIALISE WIFI PACKAGES
 
-#include <WiFi.h>
+#include <WiFi.h> //Wifi libraries for dock to dock
 #include <WiFiAP.h>
 #include <WiFiClient.h>
 #include <WiFiGeneric.h>
@@ -14,9 +13,7 @@
 #include <WiFiType.h>
 #include <WiFiUdp.h>
 
-// INITIALISE ESP-NOW PACKAGES
-
-#include <esp_now.h>
+#include <esp_now.h> //ESPnow library
 
 #include <ESP32Servo.h> //library to interface with servos
 #include "EspUsbHost.h" //USB library
@@ -55,12 +52,13 @@ Servo rightf; //fin servos
 Servo leftf;
 
 //SET UP PINS
-
 Servo servo_wrist;
 Servo servo_grip; //robotic arm servos
 
 const int servrf = 0; //attach servos to pins TBD COME BACK AND FINISH
 const int servlf = 0;
+
+const int DIVE_MAX_OUTPUT = 200; //must match VBMs max output
 
 enum FinState { //lets us put three diffrent states for the fins
 
@@ -96,8 +94,6 @@ const int in2 = ;
  const int joystick_centre = 0;
 
 // ESP-NOW FUNCTIONS
-
-
 void esp_init () {
   // initialise ESP-NOW and check that it is operating
 
@@ -231,12 +227,30 @@ void dock_transmission(const EspUsbHostGamepadEvent &event) {
   }
 }
 
+void sendDive(const EspUsbHostGamepadEvent &event){ //sends dive control to XCM
+    
+    int32_t stickY = fieldVal(event, FLSY);
+    int32_t centred = stickY - joystick_centre;
+    if (abs(centred) < joystick_deadzone) { 
+      Serial1.printf("DIVE:0\n"); //telling us the dive command is 0
+      return;
+    }
+
+     int power = map(abs(centred), joystick_deadzone, STICK_MAX, 0, DIVE_MAX_OUTPUT); //maps inputs into appropriate range
+
+     if (centred < 0) power = -power;   // stick up = climb = positive
+       Serial1.printf("DIVE:%d\n", power); //sends comand in "DIVE: __" format
+     }
+
+}
+
 void handleGamepadInput(const EspUsbHostGamepadEvent &event) {
    front(event);
    updateFins(event);
    grip_control(event);
    wrist_control(event);
    dock_transmission(event);
+   sendDive(event);
 
    if (fieldVal(event, FBR) !=0) {
       reverseState = !reverseState;
