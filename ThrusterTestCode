@@ -1,0 +1,38 @@
+// THRUSTER TESTER
+//all credit to William Bedwin well done
+
+#include <ESP32Servo.h>
+Servo myServo;
+const int servoPin = 8; 
+
+void setup() {
+  Serial.begin(9600);
+  // Allow allocation of all PWM timers for the ESP32 chip
+  ESP32PWM::allocateTimer(0);
+  ESP32PWM::allocateTimer(1);
+  ESP32PWM::allocateTimer(2);
+  ESP32PWM::allocateTimer(3);
+  
+  // Set standard 50Hz frequency for RC servos
+  myServo.setPeriodHertz(50); 
+  
+  // Attach the servo using the Arduino pin label
+  myServo.attach(servoPin, 1000, 2000); 
+  myServo.writeMicroseconds(1500);
+  Serial.println("setup complete");
+}
+
+void loop() {
+  int signal = 1500;
+  myServo.writeMicroseconds(signal);
+  Serial.println("=================================================");
+  Serial.println("DRY BENCH MODE READY.");
+  Serial.println("Type any key + ENTER to flash FORWARD for 0.5 seconds...");
+  Serial.println("=================================================");
+  
+  while (Serial.available() == 0) { delay(10); }
+  while (Serial.available() > 0) { Serial.read(); } // Clear buffer
+  
+  int signal1 = 1700;
+  myServo.writeMicroseconds(signal1);
+  delay(500)
