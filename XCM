@@ -65,7 +65,7 @@ bool reverseState = false; //our reverse button runs of boolean logic
 int straightAngle = button ? 180:0; //means our stright angle is dependent on button state without doing seperate if statements everywhere
 
 const int PWMMin = 1000; //PWM timings
-const int PWMNeautral = 1500;
+const int PWMNeutral = 1500;
 const int PWMMax = 2000;
 
 const unsigned long timeout = 250;
@@ -277,7 +277,7 @@ void setup() {
 
   localThruster.setPeriodHertz(50);
   localThruster.attach(LocalThrusterPin, PWMMin, PWMMax);
-  localThruster.writeMicroseconds(PWMNeautral);
+  localThruster.writeMicroseconds(PWMNeutral);
 
   lastCommandTime = millis();
 
@@ -298,7 +298,7 @@ void setup() {
 
 
 
-    // Set initial position for wrist psotion and grip angle
+  // Set initial position for wrist psotion and grip angle
   servo_wrist.write(wrist_angle); // start at 0 degrees
   servo_grip.write(grip_angle); // start at 0 degrees
 

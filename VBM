@@ -19,7 +19,7 @@ Servo thrusters [numThrusters];
 
 
 const int PWMMin = 1000;
-const int PWMNeautral = 1500;
+const int PWMNeutral = 1500;
 const int PWMMax = 2000;
 
 const unsigned long timeout = 250;
@@ -200,9 +200,9 @@ void applyThrottle(int thrusterIndex, int percent) {
   percent = constrain(percent, -100, 100);
   int pulse;
   if (percent >= 0) {
-    pulse = map(percent, 0, 100, PWMNeautral, PWMMax);
+    pulse = map(percent, 0, 100, PWMNeutral, PWMMax);
   } else {
-    pulse = map(percent, -100, 0, PWMMin, PWMNeautral);
+    pulse = map(percent, -100, 0, PWMMin, PWMNeutral);
   }
   thrusters[thrusterIndex].writeMicroseconds(pulse);
 }
@@ -221,7 +221,7 @@ void setup() {
    for (int i = 0; i < numThrusters; i++) {
     thrusters[i].setPeriodHertz(50); //sends 50 pulses per second
     thrusters[i].attach(thrusterPins[i], PWMMin, PWMMax);
-    thrusters[i].writeMicroseconds(PWMNeautral);
+    thrusters[i].writeMicroseconds(PWMNeutral);
   }
 
   lastCommandTime = millis();
@@ -263,7 +263,7 @@ void loop() {
  
   if (millis() - lastCommandTime > Timeout) { //failsafe, no packet when theyre should be caused all thrusters to shut down
     for (int i = 0; i < NUM; i++) {
-      thrusters[i].writeMicroseconds(PWMNeautral);
+      thrusters[i].writeMicroseconds(PWMNeutral);
     }
   }
 
