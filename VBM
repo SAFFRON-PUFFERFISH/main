@@ -160,11 +160,6 @@ int toMicros(int power) {
   return NEUTRAL + power;                            // turn a signed thrust into a servo pulse
 }
 
-int toMicros(int power) {
-  power = constrain(power, -MAX_OUTPUT, MAX_OUTPUT); // never exceed the safe offset
-  return NEUTRAL + power;                            // signed thrust -> servo pulse
-}
-
 void checkForPacket() {
   static bool packetInProgress = false;
   static int bytesReceived = 0;
