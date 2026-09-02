@@ -71,7 +71,7 @@ const int PWMMax = 2000;
 const unsigned long timeout = 250;
 unsigned long lastCommandTime = 0;
 
-const int NumPins` = 4;
+const int NumPins = 4;
 const int finPins[NumPins] = {5, 6, 7, 8}; // adjust to your wiring
 Servo fins[NumPins];
 
