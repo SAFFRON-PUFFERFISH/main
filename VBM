@@ -76,7 +76,7 @@ void pollUartCommands() { //polling to see if XCM has sent anything
       if (strncmp(cmdBuf, "DIVE:", 5) == 0) { //checks if the first five characters match "DIVE"
         verticalPower = atoi(cmdBuf + 5); //skips past dive
         verticalPower = constrain(verticalPower, -MAX_OUTPUT, MAX_OUTPUT); //constraining into safe range
-        lastCommandMs = millis();
+        lastCommandTime = millis();
       }
 
       cmdLen = 0;   //reset for the next line
@@ -88,7 +88,7 @@ void pollUartCommands() { //polling to see if XCM has sent anything
 
  // if we haven't heard from XCM recently, stop diving
 
-  if (millis() - lastCommandMs > COMMAND_TIMEOUT_MS) {
+  if (millis() - lastCommandTime > timeout) {
     verticalPower = 0;
 }
 
