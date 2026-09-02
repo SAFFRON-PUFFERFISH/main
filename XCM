@@ -48,16 +48,6 @@ const uint8_t macAddr_DockC[] = {0xE8, 0xF6, 0x0A, 0xBE, 0xB0, 0xCC};
 
 EspUsbHost usb; //creates USB host object, manages connection to controller
 
-Servo rightf; //fin servos
-Servo leftf;
-
-//SET UP PINS
-Servo servo_wrist;
-Servo servo_grip; //robotic arm servos
-
-const int servrf = 0; //attach servos to pins TBD COME BACK AND FINISH
-const int servlf = 0;
-
 const int DIVE_MAX_OUTPUT = 200; //must match VBMs max output
 
 enum FinState { //lets us put three diffrent states for the fins
@@ -73,10 +63,24 @@ FinState fins = STRAIGHT; //initilises the fin state as fins and calls the varia
 bool reverseState = false; //our reverse button runs of boolean logic
 
 int straightAngle = button ? 180:0; //means our stright angle is dependent on button state without doing seperate if statements everywhere
-//motor driver pins
-const int in1 = ; //analogue pins TBD
-const int in2 = ; 
 
+const int PWMMin = 1000; //PWM timings
+const int PWMNeautral = 1500;
+const int PWMMax = 2000;
+
+const unsigned long timeout = 250;
+unsigned long lastCommandTime = 0;
+
+const int NumPins` = 4;
+const int finPins[NumPins] = {5, 6, 7, 8}; // adjust to your wiring
+Servo fins[NumPins];
+
+const int SERVO_MIN_US = 1000;  //0 degrees //May need to change
+const int SERVO_MAX_US = 2000;  //180 degrees
+
+//Set by checkForPacket() when a full, valid packet has just been decoded.
+bool newPacketAvailable = false;
+int latestThrottle[NumThrusters];
 
  // servo angle limit 
  const int wrist_min_angle = 0;
@@ -266,6 +270,23 @@ void setup() {
   Serial.begin(115200); //set baud rate
   Serial1.begin(115200, SERIAL_8N1, /*RX pin*/ -1, /*TX pin*/ -1); //link to VBM
   
+  ESP32PWM::allocateTimer(0);
+  ESP32PWM::allocateTimer(1); //reserving signal generators for use
+  ESP32PWM::allocateTimer(2);
+  ESP32PWM::allocateTimer(3);
+
+  localThruster.setPeriodHertz(50);
+  localThruster.attach(LocalThrusterPin, PWMMin, PWMMax);
+  localThruster.writeMicroseconds(PWMNeautral);
+
+  lastCommandTime = millis();
+
+
+   for (int i = 0; i < NUMPins; i++) {
+    fins[i].setPeriodHertz(50);
+    fins[i].attach(finPins[i], SERVOMin, SERVOMax);
+    fins[i].writeMicroseconds((SERVOMin + SERVOMax) / 2); // centred
+  }
 
   esp_init();
   add_peer(macAddr_DockA); // ADD DOCK A as a PEER
@@ -276,11 +297,6 @@ void setup() {
   pinMode(in2, OUTPUT); //set pins to outouts
 
 
-    // Attach servos to pins - CONFIRM PIN NUMBERS
-  servo_wrist.attach(); 
-  servo_grip.attach(); 
-  rightf.attach(servrf);
-  leftf.attach(servlf); //attaches servos to specified pins earlier
 
     // Set initial position for wrist psotion and grip angle
   servo_wrist.write(wrist_angle); // start at 0 degrees
