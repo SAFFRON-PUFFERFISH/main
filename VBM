@@ -73,7 +73,7 @@ void pollUartCommands() { //polling to see if XCM has sent anything
       cmdBuf[cmdLen] = '\0';   //terminate the string
 
       //Expected format from XCM: "DIVE:<signed int>"
-      //e.g "DIVE:120" or "DIVE:-45"
+    
       if (strncmp(cmdBuf, "DIVE:", 5) == 0) { //checks if the first five characters match "DIVE"
         verticalPower = atoi(cmdBuf + 5); //skips past dive
         verticalPower = constrain(verticalPower, -MAX_OUTPUT, MAX_OUTPUT); //constraining into safe range
