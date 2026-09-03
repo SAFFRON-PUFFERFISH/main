@@ -1,0 +1,358 @@
+//Xbox controller microcontroller
+//Acting as the main controller, polling the controller continously, controlling steering and robotic arm. Will then send interrupts to VBM for dive system. 
+
+
+#include <WiFi.h> //Wifi libraries for dock to dock
+#include <WiFiAP.h>
+#include <WiFiClient.h>
+#include <WiFiGeneric.h>
+#include <WiFiMulti.h>
+#include <WiFiSTA.h>
+#include <WiFiScan.h>
+#include <WiFiServer.h>
+#include <WiFiType.h>
+#include <WiFiUdp.h>
+
+#include <esp_now.h> //ESPnow library
+
+#include <ESP32Servo.h> //library to interface with servos
+#include "EspUsbHost.h" //USB library
+
+
+//PLACEHOLDER FIELD INDICES
+#define FRSY -1 //field right stick y, propulsion
+#define FRB -1 //field right bumper, controls arm wrist rotation
+#define FLB -1 //field left bumper, controls arm wrist rotation
+#define FRT -1 //field right trigger, arm opening
+#define FLT -1 //field left trigger, arm closing
+#define FR -1 //field right (d-pad), opens left fin
+#define FL -1 //field left (d-pad), opens right fin
+#define FBR -1 //field button reverse, puts in reverse mode
+#define FBD -1 //field button dock, sends code to dock C
+#define FLSY -1 //field left stick dive y, controlls dive
+
+//placeholder values range UPDATE LATER ON
+#define SM -1 //stick min
+#define SMM 0 //stick medium
+#define SMMM 1 //stick max
+#define SD 5 //stick deadzone
+
+// espn global
+
+uint16_t binaryData_A;
+
+// INITIALISE GLOBAL MAC ADDRESS VARIABLES
+const uint8_t macAddr_DockA[] = {0xE8, 0xF6, 0x0A, 0xBE, 0x54, 0xDC};
+const uint8_t macAddr_DockB[] = {0xE8, 0xF6, 0x0A, 0xD3, 0x68, 0x54};
+const uint8_t macAddr_DockC[] = {0xE8, 0xF6, 0x0A, 0xBE, 0xB0, 0xCC};
+
+EspUsbHost usb; //creates USB host object, manages connection to controller
+
+const int DIVE_MAX_OUTPUT = 200; //must match VBMs max output
+
+enum FinState { //lets us put three diffrent states for the fins
+
+   STRAIGHT,
+   LEFT,
+   RIGHT
+
+};
+
+FinState fins = STRAIGHT; //initilises the fin state as fins and calls the variable fins
+
+bool reverseState = false; //our reverse button runs of boolean logic
+
+const int in1 = 1;
+const int in2 = 2;
+const int en = 0;
+
+const int PWMMin = 1000; //PWM timings
+const int PWMNeutral = 1500;
+const int PWMMax = 2000;
+
+const unsigned long timeout = 250;
+unsigned long lastCommandTime = 0;
+
+
+
+Servo servo_grip;
+Servo servo_wrist;
+Servo rightf;
+Servo leftf;
+
+const int SERVO_MIN_US = 1000;  //0 degrees //May need to change
+const int SERVO_MAX_US = 2000;  //180 degrees
+
+//Set by checkForPacket() when a full, valid packet has just been decoded.
+bool newPacketAvailable = false;
+//int latestThrottle[NumThrusters];
+
+ // servo angle limit 
+const int wrist_min_angle = 0;
+const int wrist_max_angle = 180; //setting parameters
+const int grip_min_angle = 0;
+const int grip_max_angle = 90;
+
+const int SERVOMin = 0;
+const int SERVOMax = 180;
+ // Define starting angles for Servos 
+int wrist_angle = 0;
+int grip_angle = 0;
+ 
+ // joystick angles 
+ // xBox -32768 to +32767 //NEEDS CHANGING FOR GENEREIC
+const int joystick_deadzone = 7500;
+const int joystick_centre = 0;
+
+int32_t fieldVal(const EspUsbHostGamepadEvent &event, int fieldIndex) {
+  if (fieldIndex < 0 || fieldIndex >= event.fieldCount) return 0; // guard for placeholder/unset indices
+  return event.fields[fieldIndex].value;
+}
+
+// ESP-NOW FUNCTIONS
+void esp_init () {
+  // initialise ESP-NOW and check that it is operating
+
+  WiFi.mode(WIFI_MODE_STA);
+  
+  if (esp_now_init() != ESP_OK) {
+    Serial.println("ESP-NOW Initialisation Failed, Retrying...");
+    ESP.restart();
+  }
+  else {
+    esp_now_register_recv_cb(receive_data); // REMOVE IF NOT RECEIVING DATA
+    // esp_now_register_send_cb(send_success); // REMOVE IF SEND VALIDATION N/R
+  };
+}
+
+bool send_data(const uint8_t *receiverMAC, const uint8_t *data, size_t len) {
+  // take input of receiver MAC Address, send data
+  // conducts 10 attempts with a spacing of 50ms before halting transfer attempts
+  // returns bool depending on success/failure
+  esp_err_t result;
+  int attempts = 0;
+
+  do {
+    result = esp_now_send(receiverMAC, data, len);
+    attempts++;
+    if (result != ESP_OK) delay(50);
+  } while (result != ESP_OK && attempts <= 10);
+
+  if (attempts > 10) {Serial.println("Data transmission failed. :(");}
+  
+  return (result == ESP_OK); // returns true if data sent successfully
+}
+
+void receive_data(const esp_now_recv_info_t *recv_info, const uint8_t *data, int len) {
+  uint16_t value;
+  memcpy(&value, data, 2);
+  binaryData_A = value;
+
+  // if you need the sender's MAC address:
+  // const uint8_t *senderMAC = recv_info->src_addr;
+}
+
+void add_peer(const uint8_t *receiverMAC) {
+  esp_now_peer_info_t peerInfo = {};
+  memcpy(peerInfo.peer_addr, receiverMAC, 6);
+  peerInfo.channel = 0;
+  peerInfo.encrypt = false;
+  esp_now_add_peer(&peerInfo);
+}
+
+void front(const EspUsbHostGamepadEvent &event) {
+  int32_t stickY = fieldVal(event, FRSY);
+
+  int32_t centred;
+  centred = stickY - joystick_centre; //CONFIRM DEADZONE
+
+  if (abs(centred) < joystick_deadzone) {
+    digitalWrite(in1, LOW);
+    digitalWrite(in2, LOW);
+    analogWrite(en, 0);          //stopped
+    return;
+  }
+
+    
+  int speed = map(abs(centred), joystick_deadzone, SMMM, 0, 255);
+
+  if (centred > 0) {
+    digitalWrite(in1, HIGH);
+    digitalWrite(in2, LOW);      //forward
+  } else {
+    digitalWrite(in1, LOW);
+    digitalWrite(in2, HIGH);     //reverse
+  }
+  analogWrite(en, speed);    //speed control MAY NEED CHANGING
+  
+
+
+ 
+}
+
+void updateFins(const EspUsbHostGamepadEvent &event)
+{
+  int straightAngle = reverseState ? 180 : 0; //changes which direction the fins will lie flat wether going forward or in reverse
+
+  
+
+
+  if (fieldVal(event, FR) !=0)
+  {
+    rightf.write(straightAngle); //closes right fin
+    leftf.write(90); //opens left fin
+  }
+ 
+
+
+
+
+  if (fieldVal(event, FR) !=0) {
+    rightf.write(straightAngle);
+    leftf.write(90);
+
+  } 
+    
+    
+  else if (fieldVal(event, FL) !=0)
+  {
+    leftf.write(straightAngle);
+    rightf.write(90);
+  }
+  else
+  {
+    rightf.write(straightAngle); //closes both fins
+    leftf.write(straightAngle);
+  }
+}
+
+void grip_control (const EspUsbHostGamepadEvent &event){ 
+  
+  int32_t openTrig  = fieldVal(event, FRT);   // right trigger OPEN
+  int32_t closeTrig = fieldVal(event, FLT);   // left trigger  CLOSE
+
+  int step = 2;   // degrees per callback may need changing
+
+
+  if (openTrig > 50) { //CHANGE DEADZONE
+    grip_angle += step;
+  } else if (closeTrig > 50) {
+    grip_angle -= step;
+  }
+
+  grip_angle = constrain(grip_angle, grip_min_angle, grip_max_angle);
+  servo_grip.write(grip_angle);
+}
+
+//Control the wrist rotation based on the triggers. Hold R down, will turn CW onedegree every loop. so when released it stays there, and left will turn CCW. 
+void wrist_control(const EspUsbHostGamepadEvent &event) {
+ 
+  bool R_rotation = fieldVal(event, FRB) != 0;
+  bool L_rotation = fieldVal(event, FLB) != 0;
+
+ int step = 2; // degrees per loop
+  // check if button is pressed
+  if (R_rotation){
+    // rotate servo angle
+    wrist_angle += step;
+  }
+  else if (L_rotation){
+        wrist_angle -= step;
+  }
+ wrist_angle = constrain(wrist_angle, wrist_min_angle, wrist_max_angle); // keep in servo limits
+ servo_wrist.write(wrist_angle); // move servo 
+}
+
+void dock_transmission(const EspUsbHostGamepadEvent &event) {
+  if (fieldVal(event, FBD) != 0) {
+    send_data(macAddr_DockC, (uint8_t *)&binaryData_A, sizeof(binaryData_A));
+  }
+}
+
+void sendDive(const EspUsbHostGamepadEvent &event){ //sends dive control to XCM
+    
+  int32_t stickY = fieldVal(event, FLSY);
+  int32_t centred = stickY - joystick_centre;
+  if (abs(centred) < joystick_deadzone) { 
+    Serial1.printf("DIVE:0\n"); //telling us the dive command is 0
+    return;
+  }
+
+  int power = map(abs(centred), joystick_deadzone, SMMM, 0, DIVE_MAX_OUTPUT); //maps inputs into appropriate range
+
+  if (centred < 0) power = -power; {  // stick up = climb = positive
+    Serial1.printf("DIVE:%d\n", power); //sends comand in "DIVE: __" format
+  }
+
+}
+
+void handleGamepadInput(const EspUsbHostGamepadEvent &event) {
+   front(event);
+   updateFins(event);
+   grip_control(event);
+   wrist_control(event);
+   dock_transmission(event);
+   sendDive(event);
+
+   if (fieldVal(event, FBR) !=0) {
+      reverseState = !reverseState;
+   }
+
+
+
+}
+
+
+void setup() {
+
+  Serial.begin(115200); //set baud rate
+  Serial1.begin(115200, SERIAL_8N1, /*RX pin*/ -1, /*TX pin*/ -1); //link to VBM
+  
+  ESP32PWM::allocateTimer(0);
+  ESP32PWM::allocateTimer(1); //reserving signal generators for use
+  ESP32PWM::allocateTimer(2);
+  ESP32PWM::allocateTimer(3);
+
+
+
+
+  rightf.setPeriodHertz(50);
+  leftf.setPeriodHertz(50);
+  servo_grip.setPeriodHertz(50);
+  servo_wrist.setPeriodHertz(50);
+
+  rightf.attach(4, SERVOMin, SERVOMax);
+  rightf.attach(5, SERVOMin, SERVOMax);
+  rightf.attach(6, SERVOMin, SERVOMax);
+  rightf.attach(7, SERVOMin, SERVOMax);
+
+  lastCommandTime = millis();
+  esp_init();
+  add_peer(macAddr_DockA); // ADD DOCK A as a PEER
+  add_peer(macAddr_DockB); // ADD DOCK B as a PEER
+  add_peer(macAddr_DockC); // ADD DOCK C as a PEER
+
+  pinMode(in1, OUTPUT);
+  pinMode(in2, OUTPUT); //set pins to outouts
+
+
+
+  // Set initial position for wrist psotion and grip angle
+  servo_wrist.write(wrist_angle); // start at 0 degrees
+  servo_grip.write(grip_angle); // start at 0 degrees
+
+  usb.onGamepad([](const EspUsbHostGamepadEvent &event) { //runs automatically when new controller datac omes in
+
+    handleGamepadInput(event);
+
+  });
+  
+
+  if (!usb.begin()) {
+    Serial.println("USB host failed to start");
+  }
+}
+
+void loop() {
+
+}
